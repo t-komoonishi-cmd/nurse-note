@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ナースノート</title>
+<style>
+:root{--bg:#f6f8f7;--card:#fff;--tx:#1d2b27;--sub:#5d6f69;--ac:#0f8a6d;--acx:#fff;--bd:#d8e2de;--ng:#c0392b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a18;--card:#1e2724;--tx:#e8f0ed;--sub:#9fb3ac;--ac:#3cc3a0;--acx:#07241c;--bd:#2f3d38;--ng:#ff7b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding-bottom:70px}
+main{max-width:640px;margin:0 auto;padding:14px}
+h1{font-size:18px;margin:4px 0 10px}h2{font-size:16px;margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--sub);margin-top:8px}
+input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+button{font:inherit;border:0;border-radius:8px;padding:10px 14px;background:var(--ac);color:var(--acx);cursor:pointer;margin-top:8px}
+button.s{background:var(--bd);color:var(--tx)}button.ng{background:var(--ng);color:#fff}
+.res{margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);font-weight:600}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;margin:0;border-radius:0;background:none;color:var(--sub);padding:12px 4px;font-size:13px}
+nav button.on{color:var(--ac);font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid var(--bd);padding:6px 4px;text-align:left}
+.wrap{overflow-x:auto}.note{font-size:12px;color:var(--sub)}
+.big{font-size:20px;min-height:80px;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0}.chk input{width:22px;height:22px;margin-top:3px;flex:none}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>ナースノート <span class="note">家族用の学習・確認ツール</span></h1>
+
+<section id="t-calc">
+<div class="card"><h2>輸液速度</h2>
+<label>総量 (mL)</label><input id="c1v" type="number" inputmode="decimal">
+<label>時間 (時間)</label><input id="c1h" type="number" inputmode="decimal">
+<label>輸液セット (滴/mL)</label><select id="c1f"><option value="20">一般用 20滴/mL</option><option value="60">微量用 60滴/mL</option><option value="15">15滴/mL</option></select>
+<button onclick="calc1()">計算</button><div class="res" id="r1">—</div></div>
+<div class="card"><h2>体重あたりの投与量</h2>
+<label>指示量 (mg/kg)</label><input id="c2d" type="number" inputmode="decimal">
+<label>体重 (kg)</label><input id="c2w" type="number" inputmode="decimal">
+<label>薬液の濃度 (mg/mL)</label><input id="c2c" type="number" inputmode="decimal">
+<button onclick="calc2()">計算</button><div class="res" id="r2">—</div></div>
+<div class="card"><h2>滴下数から速度へ</h2>
+<label>1分あたりの滴下数 (滴/分)</label><input id="c3d" type="number" inputmode="decimal">
+<label>輸液セット (滴/mL)</label><select id="c3f"><option value="20">一般用 20滴/mL</option><option value="60">微量用 60滴/mL</option><option value="15">15滴/mL</option></select>
+<button onclick="calc3()">計算</button><div class="res" id="r3">—</div></div>
+<p class="note">確認用の補助ツールです。実際の投与では、必ず指示書・施設の手順・ダブルチェックで確認してください。</p>
+</section>
+
+<section id="t-ref" class="hide">
+<div class="row"><input id="q" placeholder="検索(例: K、CRP、NPO)" oninput="renderRef()"><button class="s" style="flex:none;margin:0" onclick="voice('q')">🎤</button></div>
+<div class="card" style="margin-top:12px"><h2>検査値・バイタル(成人の目安)</h2><div class="wrap"><table id="lab"></table></div>
+<p class="note">基準値は施設・測定法で異なります。所属先の値を優先してください。</p></div>
+<div class="card"><h2>略語</h2><div class="wrap"><table id="abbr"></table></div></div>
+</section>
+
+<section id="t-dis" class="hide">
+<div class="row"><input id="dq" placeholder="病名・症状で検索(例: 心不全、息切れ、胸痛)" oninput="renderDis()"><button class="s" style="flex:none;margin:0" onclick="voice('dq')">🎤</button></div>
+<p class="note">学習用のまとめです。診断や治療の判断には使わず、体調が悪いときは医療機関に相談してください。</p>
+<div id="dres"></div>
+</section>
+
+<section id="t-card" class="hide">
+<div class="card"><h2>復習</h2><div id="stat" class="note"></div>
+<div class="big" id="cq">—</div><div class="big hide" id="ca" style="color:var(--ac)"></div>
+<div class="row"><button id="bshow" onclick="showAns()">答えを見る</button></div>
+<div class="row hide" id="bgrade"><button class="ng" onclick="grade(false)">まだ</button><button onclick="grade(true)">覚えた</button></div></div>
+<div class="card"><h2>カードを追加</h2>
+<label>問題</label><div class="row"><input id="nq"><button class="s" style="flex:none;margin:0" onclick="voice('nq')">🎤</button></div><label>答え</label><div class="row"><input id="na"><button class="s" style="flex:none;margin:0" onclick="voice('na')">🎤</button></div>
+<button onclick="addCard()">追加</button></div>
+<div class="card"><h2>手書きメモ</h2>
+<canvas id="cv" style="width:100%;border:1px solid var(--bd);border-radius:8px;touch-action:none;background:#fff"></canvas>
+<div class="row"><button id="bpen" onclick="setEr(false)">ペン</button><button id="ber" class="s" onclick="setEr(true)">消しゴム</button><button class="s" onclick="cfill()">全消去</button><button onclick="csave()">保存</button></div>
+<div id="notes"></div>
+<p class="note">文字にしたいときは、スマホのキーボードの手書き入力(日本語手書き)も使えます。</p></div>
+<div class="card"><h2>バックアップ</h2>
+<button class="s" onclick="exp()">書き出し</button> <button class="s" onclick="imp()">読み込み</button>
+<textarea id="io" rows="4" placeholder="書き出し後、ここの文字をメモ等に保存。読み込むときは貼り付け。"></textarea></div>
+<div class="card"><h2>カード一覧</h2><div id="list"></div></div>
+</section>
+
+<section id="t-skill" class="hide">
+<div id="skills"></div>
+<p class="note">一般的な流れの例です。実際の手順は学校・施設のマニュアルを優先してください。</p>
+<button class="s" onclick="resetChecks()">チェックをすべて外す</button>
+</section>
+</main>
+
+<nav>
+<button class="on" data-t="calc">計算</button><button data-t="ref">早見表</button><button data-t="dis">病名</button><button data-t="card">暗記</button><button data-t="skill">手技</button>
+</nav>
+
+<script>
+var mem={};
+function sget(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return mem[k]!==undefined?mem[k]:d}}
+function sset(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){mem[k]=v}}
+function $(i){return document.getElementById(i)}
+function n(i){return parseFloat($(i).value)}
+function f(x){return Math.round(x*100)/100}
+
+document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){
+ document.querySelectorAll('nav button').forEach(function(x){x.classList.toggle('on',x===b)});
+ ['calc','ref','dis','card','skill'].forEach(function(t){$('t-'+t).classList.toggle('hide',t!==b.dataset.t)});window.scrollTo(0,0)}});
+
+function calc1(){var v=n('c1v'),h=n('c1h'),k=parseFloat($('c1f').value);
+ if(!(v>0&&h>0)){$('r1').textContent='数値を入力してください';return}
+ var d=v*k/(h*60);$('r1').textContent=f(v/h)+' mL/h ・ '+f(d)+' 滴/分(約'+f(60/d)+'秒に1滴)'}
+function calc2(){var d=n('c2d'),w=n('c2w'),c=n('c2c');
+ if(!(d>0&&w>0)){$('r2').textContent='数値を入力してください';return}
+ var t=d*w,s='1回量 '+f(t)+' mg';if(c>0)s+=' ・ '+f(t/c)+' mL';$('r2').textContent=s}
+function calc3(){var d=n('c3d'),k=parseFloat($('c3f').value);
+ if(!(d>0)){$('r3').textContent='数値を入力してください';return}
+ $('r3').textContent=f(d*60/k)+' mL/h'}
+
+var LAB=[["体温","36.0〜37.0 ℃"],["脈拍","60〜100 回/分"],["呼吸数","12〜20 回/分"],["血圧","収縮期 〜129 / 拡張期 〜84 mmHg"],["SpO2","96〜100 %"],
+["Na","135〜145 mEq/L"],["K","3.5〜5.0 mEq/L"],["Cl","98〜108 mEq/L"],["Ca","8.5〜10.5 mg/dL"],
+["Hb","男 13.5〜17.5 / 女 11.5〜15.0 g/dL"],["WBC","3,300〜8,600 /μL"],["Plt","15〜35 万/μL"],
+["AST","10〜35 U/L"],["ALT","5〜40 U/L"],["BUN","8〜20 mg/dL"],["Cr","男 0.6〜1.1 / 女 0.5〜0.8 mg/dL"],
+["CRP","0.3 mg/dL 未満"],["空腹時血糖","70〜109 mg/dL"],["HbA1c","4.6〜6.2 %(NGSP)"]];
+var ABBR=[["NPO","絶飲食"],["PRN","必要時"],["DIV","点滴静注"],["IVH","中心静脈栄養"],["ADL","日常生活動作"],["QOL","生活の質"],["BP","血圧"],["HR","心拍数"],["RR","呼吸数"],["SpO2","経皮的動脈血酸素飽和度"],
+["DM","糖尿病"],["HT","高血圧"],["MI","心筋梗塞"],["CHF","うっ血性心不全"],["COPD","慢性閉塞性肺疾患"],["CKD","慢性腎臓病"],["DIC","播種性血管内凝固"],["ICU","集中治療室"],["I/O","水分の出納(インアウト)"],["SOAP","主観・客観・アセスメント・計画"]];
+function renderRef(){var q=$('q').value.toLowerCase();
+ function rows(a){return a.filter(function(r){return (r[0]+r[1]).toLowerCase().indexOf(q)>=0}).map(function(r){return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td></tr>'}).join('')||'<tr><td>該当なし</td></tr>'}
+ $('lab').innerHTML=rows(LAB);$('abbr').innerHTML=rows(ABBR)}
+renderRef();
+
+var DIS=[
+"高血圧症|血圧|多くは無症状。頭痛、肩こり、めまいが出ることも。放置すると脳卒中・心臓病・腎臓病の原因になる|減塩(1日6g未満が目標)、減量、運動、節酒、禁煙。降圧薬の継続。家庭血圧の記録",
+"糖尿病|血糖 インスリン|口渇、多飲、多尿、体重減少、だるさ。進行すると網膜症・腎症・神経障害|食事・運動療法、血糖測定、薬・インスリン。低血糖と足のケア(傷・靴ずれ)に注意。体調不良時(シックデイ)は早めに相談",
+"脂質異常症|コレステロール 中性脂肪|通常は無症状。動脈硬化を進める|食事(脂質・糖質を控える)、運動、薬。定期的な検査",
+"心不全|息切れ むくみ|息切れ、むくみ、体重増加、夜間の呼吸困難、横になると苦しい|安静、塩分・水分管理、毎日の体重測定(急な増加は受診)、薬の継続、起座位で呼吸を楽に",
+"狭心症・心筋梗塞|胸痛 心臓|胸の締めつけ・圧迫感。狭心症は数分〜十数分で治まり、心筋梗塞は20分以上続き冷汗・吐き気を伴う|心筋梗塞が疑われたら直ちに救急要請。安静、ニトログリセリン(処方されている場合)。再発予防は禁煙・生活習慣の改善",
+"心房細動|不整脈 動悸|動悸、脈の不規則さ、息切れ。無症状のことも。血栓で脳梗塞を起こすことがある|抗凝固薬、脈拍を整える薬。脈の不規則さや出血傾向を観察",
+"脳梗塞|脳卒中 麻痺|顔のゆがみ、片側の麻痺、ろれつが回らない、突然のめまい|発症時刻を確認し直ちに救急要請(早期治療が重要)。入院後は再発予防、リハビリ、誤嚥・褥瘡・転倒の予防",
+"脳出血|脳卒中 頭痛|突然の激しい頭痛、嘔吐、意識障害、片麻痺|救急要請、血圧管理、安静。頭蓋内圧亢進(頭痛・嘔吐・意識の変化)の観察",
+"肺炎|咳 発熱 痰|発熱、咳、痰、息苦しさ。高齢者は症状が目立たず、元気がない・食欲低下のことも|抗菌薬、酸素、水分。体位ドレナージ、口腔ケア、誤嚥予防",
+"気管支喘息|ぜんそく 喘鳴|発作性の咳、ゼーゼー(喘鳴)、息苦しさ。夜間・明け方に悪化|吸入ステロイドで予防、発作時は気管支拡張薬(吸入)。座位や起座位で楽に。誘因(ほこり・煙・風邪)を避ける",
+"COPD|慢性閉塞性肺疾患 たばこ|慢性の咳・痰、労作時の息切れ。主な原因は喫煙|禁煙、吸入薬、呼吸リハビリ(口すぼめ呼吸)、感染予防(ワクチン)。酸素は指示された量を守る",
+"胃・十二指腸潰瘍|胃潰瘍 ピロリ|みぞおちの痛み、吐き気、黒色便(出血)。胃潰瘍は食後、十二指腸潰瘍は空腹時に痛みやすい|ピロリ菌の除菌、胃酸を抑える薬。痛み止め(NSAIDs)に注意。吐血・黒色便は至急受診",
+"肝硬変|肝臓 腹水|だるさ、黄疸、腹水、むくみ、手のひらの赤み、吐血(食道静脈瘤)|安静、塩分制限、飲酒禁止、薬。出血・意識の変化(肝性脳症)の観察",
+"慢性腎臓病(CKD)|腎臓 むくみ 尿|初期は無症状。進行するとむくみ、倦怠感、貧血、尿量の変化|塩分・たんぱく質・カリウムの制限(病期による)、血圧・血糖管理、腎毒性のある薬を避ける",
+"尿路感染症|膀胱炎 腎盂腎炎 頻尿|頻尿、排尿時痛、残尿感、尿の濁り。腎盂腎炎は発熱・腰背部痛|抗菌薬、水分摂取、清潔の保持。高熱・腰痛は早めの受診",
+"骨粗鬆症|骨折 円背|多くは無症状。骨折しやすい。背中や腰の痛み、身長低下、円背|カルシウム・ビタミンD、適度な運動、薬、転倒予防",
+"大腿骨頸部骨折|骨折 転倒 股関節|転倒後の股関節の痛み、立てない・歩けない|手術(早期が望ましい)、早期離床とリハビリ、術後は肺炎・血栓・せん妄・褥瘡の予防",
+"認知症|物忘れ|物忘れ、日時や場所が分からなくなる、判断力の低下、行動・心理症状(BPSD)|本人を否定しない、環境を整える、規則的な生活、安全の確保、介護者への支援",
+"うつ病|気分 不眠 落ち込み|気分の落ち込み、興味の喪失、不眠、食欲の変化、疲れやすさ|休養、薬物療法、精神療法。自殺念慮の観察(必ず確認し、支援につなぐ)。励ましすぎない",
+"脱水症|水分 口渇|口渇、尿量減少、皮膚・口腔の乾燥、ふらつき、頻脈、意識がぼんやり|経口補水液や点滴で補う。高齢者は口渇を感じにくいので、こまめな水分を促す",
+"貧血(鉄欠乏性)|ヘモグロビン めまい|顔色が悪い、動悸、息切れ、めまい、だるさ、爪が反る|鉄剤、鉄を多く含む食事、原因(出血など)の検索。鉄剤で黒い便が出ることがある",
+"インフルエンザ|感染症 発熱 風邪|急な高熱、関節痛、筋肉痛、頭痛、咳|休養、水分、抗インフルエンザ薬(発症後早期)。飛沫予防策、マスク、手洗い。高齢者・小児は重症化に注意",
+"急性虫垂炎|盲腸 腹痛|みぞおち〜右下腹部の痛み、吐き気、発熱。右下腹部に圧痛|外科的治療(手術)または抗菌薬。絶飲食、痛みの観察。腹膜炎(腹が硬い・激痛)に注意",
+"バセドウ病|甲状腺 動悸|動悸、発汗、体重減少、手のふるえ、眼球突出、甲状腺の腫れ|抗甲状腺薬。安静、水分、感情の波に配慮。薬は自己中断しない",
+"熱中症|暑さ めまい けいれん|めまい、立ちくらみ、頭痛、吐き気、けいれん、重症は意識障害・高体温|涼しい場所へ移し、衣服を緩め、首・わき・脚の付け根を冷やす。意識があれば水分と塩分。意識障害は救急要請"
+].map(function(s){var p=s.split('|');return {n:p[0],k:p[1],s:p[2],c:p[3]}});
+function renderDis(){var q=$('dq').value.trim().toLowerCase();
+ var r=DIS.filter(function(d){return !q||(d.n+d.k+d.s+d.c).toLowerCase().indexOf(q)>=0});
+ $('dres').innerHTML=r.map(function(d){return '<details class="card"'+(q?' open':'')+'><summary><b>'+d.n+'</b></summary><label>症状</label>'+d.s+'<label>対処・看護のポイント</label>'+d.c+'</details>'}).join('')||'<p class="note">該当なし</p>'}
+DIS=DIS.concat([
+"肺結核|咳 微熱 寝汗|2週間以上続く咳、痰、微熱、寝汗、体重減少|空気感染予防策(N95マスク、陰圧室)、抗結核薬を長期間きちんと内服(自己中断しない)",
+"気胸|胸痛 息苦しさ|突然の胸痛、息苦しさ、乾いた咳(やせ型の若い男性に多い)|安静、胸腔ドレナージ、ドレーンの屈曲・抜けに注意、呼吸状態の観察",
+"誤嚥性肺炎|むせ 高齢者|食事中のむせ、微熱、元気がない、痰が増える|口腔ケア、食事の姿勢、とろみ、嚥下リハビリ、食後はしばらく上体を起こす",
+"急性胃腸炎|嘔吐 下痢 ノロ|嘔吐、下痢、腹痛、発熱|脱水予防(少量ずつ水分)、手洗い、吐物・便の処理は手袋と次亜塩素酸ナトリウム",
+"腸閉塞(イレウス)|腹痛 嘔吐|腹痛、嘔吐、おなかの張り、おならや便が出ない|絶飲食、点滴、胃管での減圧、腹痛・嘔吐・腹部膨満の観察",
+"胆石症・胆嚢炎|右上腹部痛 黄疸|右上腹部痛(脂っこい食事のあと)、吐き気、発熱、黄疸|絶食、抗菌薬、鎮痛、手術(胆嚢摘出)。脂質を控える",
+"急性膵炎|上腹部痛 飲酒|上腹部から背中への激痛、嘔吐。原因は飲酒や胆石|絶飲食、点滴、鎮痛、安静。ショックや呼吸状態の観察",
+"胃がん|胃 がん|初期は無症状。みぞおちの痛み、食欲低下、体重減少、黒色便|内視鏡検診、手術・化学療法。術後はダンピング症候群(食後の動悸・冷汗)に注意し、少量頻回食",
+"大腸がん|血便 便通異常|血便、便秘や下痢の繰り返し、細い便、貧血|便潜血検査・内視鏡、手術。人工肛門(ストーマ)のケアと自己管理の支援",
+"乳がん|しこり 乳房|乳房のしこり、乳頭からの分泌、皮膚のくぼみ|検診・自己チェック、手術・薬物療法。術後はリンパ浮腫予防のため患側での採血・血圧測定を避ける",
+"深部静脈血栓症・肺塞栓症|エコノミークラス 血栓|片脚の腫れ・痛み。肺塞栓では突然の息切れ、胸痛|長期臥床・術後に注意。弾性ストッキング、早期離床、抗凝固薬。肺塞栓が疑われたら救急要請",
+"尿路結石|血尿 側腹部痛|突然の激しい側腹部痛、血尿、吐き気|鎮痛薬、水分摂取、排石を促す。発熱を伴うときは早めの受診",
+"前立腺肥大症|排尿 頻尿|頻尿、尿の勢いが弱い、残尿感、夜間頻尿|薬物療法、手術。尿閉(出ない)に注意し、風邪薬や飲酒の影響にも注意",
+"関節リウマチ|関節 こわばり|朝のこわばり、手指などの関節の腫れ・痛み(左右対称)|薬物療法、関節の保護、リハビリ、関節を温めて動かす",
+"痛風|尿酸 足|足の親指のつけ根などの激しい痛みと腫れ|安静と冷却、薬、水分、飲酒とプリン体を控える",
+"パーキンソン病|ふるえ 歩行|手のふるえ、筋肉のこわばり、動作が遅い、小刻み歩行|薬(服薬時間を守る)、リハビリ、転倒予防、嚥下の観察",
+"てんかん|けいれん 発作|意識消失、けいれん発作|発作時は安全を確保(頭を保護、衣服を緩める、口に物を入れない)、時間を記録、5分以上続けば救急要請。薬の継続",
+"統合失調症|幻覚 妄想|幻覚、妄想、意欲の低下、まとまりのない思考|薬物療法、規則的な生活、信頼関係づくり、再発サイン(眠れない・落ち着かない)の観察"
+].map(function(s){var p=s.split('|');return {n:p[0],k:p[1],s:p[2],c:p[3]}}));
+function voice(id){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert('この端末・ブラウザでは音声入力が使えません。キーボードのマイクボタンをお使いください。');return}
+ var el=$(id),ph=el.placeholder,r=new SR();r.lang='ja-JP';r.interimResults=false;el.placeholder='聞いています…';
+ r.onresult=function(e){el.value=e.results[0][0].transcript;el.dispatchEvent(new Event('input'))};
+ r.onerror=function(){alert('音声入力に失敗しました。マイクの許可を確認してください。')};
+ r.onend=function(){el.placeholder=ph};
+ try{r.start()}catch(x){}}
+var cv=$('cv'),cx=cv.getContext('2d'),dr=false,er=false;cv.width=600;cv.height=300;
+function cfill(){cx.fillStyle='#fff';cx.fillRect(0,0,600,300)}cfill();cx.lineCap='round';cx.lineJoin='round';
+function pos(e){var r=cv.getBoundingClientRect();return [(e.clientX-r.left)*600/r.width,(e.clientY-r.top)*300/r.height]}
+cv.onpointerdown=function(e){dr=true;try{cv.setPointerCapture(e.pointerId)}catch(x){}var p=pos(e);cx.beginPath();cx.moveTo(p[0],p[1]);cx.lineWidth=er?20:3;cx.strokeStyle=er?'#fff':'#111';cx.lineTo(p[0]+0.1,p[1]);cx.stroke()};
+cv.onpointermove=function(e){if(!dr)return;var p=pos(e);cx.lineTo(p[0],p[1]);cx.stroke()};
+cv.onpointerup=cv.onpointercancel=function(){dr=false};
+function setEr(v){er=v;$('bpen').className=v?'s':'';$('ber').className=v?'':'s'}
+function csave(){var m=sget('notes',[]);m.unshift(cv.toDataURL('image/jpeg',0.6));sset('notes',m.slice(0,12));renderNotes()}
+function delNote(i){var m=sget('notes',[]);m.splice(i,1);sset('notes',m);renderNotes()}
+function renderNotes(){var m=sget('notes',[]);$('notes').innerHTML=m.map(function(u,i){return '<div style="margin-top:8px"><img src="'+u+'" style="width:100%;border-radius:8px"><button class="s" onclick="delNote('+i+')">削除</button></div>'}).join('')}
+renderNotes();
+renderDis();
+var DECKV=2;
+var DECK=[
+"解剖生理|心臓の4つの部屋は?|右心房・右心室・左心房・左心室",
+"解剖生理|体循環の流れは?|左心室→大動脈→全身→大静脈→右心房",
+"解剖生理|肺循環の流れは?|右心室→肺動脈→肺→肺静脈→左心房",
+"解剖生理|僧帽弁はどこにある?|左心房と左心室の間",
+"解剖生理|三尖弁はどこにある?|右心房と右心室の間",
+"解剖生理|赤血球の主な働きは?|酸素の運搬(ヘモグロビンが酸素と結合)",
+"解剖生理|白血球・血小板の主な働きは?|白血球は感染防御(免疫)、血小板は止血",
+"解剖生理|肺でガス交換が行われる場所は?|肺胞",
+"解剖生理|吸気のとき横隔膜はどう動く?|収縮して下がる(胸腔が広がる)",
+"解剖生理|栄養の吸収が主に行われる臓器は?|小腸",
+"解剖生理|水分の吸収が主に行われる臓器は?|大腸",
+"解剖生理|肝臓の主な働きは?|代謝、解毒、胆汁の生成、栄養の貯蔵",
+"解剖生理|血糖を下げるホルモンと分泌臓器は?|インスリン、膵臓(ランゲルハンス島のβ細胞)",
+"解剖生理|血糖を上げるホルモンの例は?|グルカゴン、アドレナリン、コルチゾール など",
+"解剖生理|腎臓の機能単位は?|ネフロン(糸球体+尿細管)",
+"解剖生理|尿ができる流れは?|糸球体でろ過→尿細管で再吸収・分泌→尿",
+"解剖生理|呼吸・循環の中枢がある脳の部位は?|延髄",
+"解剖生理|運動の調節・平衡をつかさどる脳の部位は?|小脳",
+"解剖生理|自律神経の2つは?|交感神経と副交感神経",
+"解剖生理|交感神経が優位になると心拍はどうなる?|増加する(副交感神経は低下させ、消化を促進)",
+"解剖生理|皮膚の3層は?|表皮・真皮・皮下組織",
+"解剖生理|甲状腺ホルモンの主な働きは?|代謝を高める",
+"観察|バイタルサインの基本項目は?|体温・脈拍・呼吸・血圧・意識(SpO2を加えることも多い)",
+"観察|頻脈と徐脈の目安は?|頻脈は100回/分以上、徐脈は60回/分未満",
+"観察|頻呼吸と徐呼吸の目安は?|頻呼吸は約25回/分以上、徐呼吸は12回/分未満(教科書により多少異なる)",
+"観察|高血圧の目安(診察室血圧)は?|140/90 mmHg以上",
+"観察|脈圧とは?|収縮期血圧−拡張期血圧",
+"観察|意識レベルを評価する代表的な指標は?|JCS(ジャパン・コーマ・スケール)、GCS",
+"観察|JCSで3桁(100〜300)が意味するものは?|刺激しても覚醒しない状態",
+"観察|チアノーゼとは?|酸素不足で皮膚・粘膜が青紫色になること",
+"観察|浮腫の確認方法は?|すねなどを指で押し、へこみ(圧痕)が残るか見る",
+"観察|脱水のサインは?|口渇、皮膚の張りの低下、尿量減少、頻脈",
+"観察|褥瘡の好発部位(仰向け)は?|後頭部、肩甲骨部、仙骨部、踵部",
+"観察|褥瘡予防の基本は?|体位変換(目安は2時間ごと)、除圧、皮膚の清潔・保湿、栄養",
+"感染・安全|標準予防策(スタンダードプリコーション)とは?|すべての人の血液・体液・排泄物などを感染の可能性があるものとして扱う",
+"感染・安全|WHOの手指衛生5つのタイミングは?|患者に触れる前、清潔・無菌操作の前、体液に触れた後、患者に触れた後、患者周囲の環境に触れた後",
+"感染・安全|感染経路別予防策の3つは?|接触予防策、飛沫予防策、空気予防策",
+"感染・安全|空気感染する代表的な疾患は?|結核、麻疹、水痘",
+"感染・安全|飛沫感染する代表的な疾患は?|インフルエンザ、百日咳、風疹 など",
+"感染・安全|ノロウイルスの消毒に有効なものは?|次亜塩素酸ナトリウム(アルコールは効きにくい)",
+"感染・安全|ヒヤリ・ハットとは?|事故には至らなかったが、ひやりとした・はっとした出来事",
+"感染・安全|インシデント報告の目的は?|責任追及ではなく、再発防止と安全対策の改善",
+"感染・安全|転倒転落のリスク因子は?|高齢、筋力低下、睡眠薬などの薬剤、ふらつき、環境(段差・濡れた床)",
+"感染・安全|針刺し事故が起きたらまず何をする?|直ちに流水で洗い流し、速やかに上司へ報告して受診する",
+"看護基礎|看護過程の5段階は?|アセスメント→看護診断→計画立案→実施→評価",
+"看護基礎|SOAPとは?|S 主観的情報、O 客観的情報、A アセスメント、P 計画",
+"看護基礎|看護倫理の4原則は?|自律尊重、善行、無危害、正義",
+"看護基礎|インフォームドコンセントとは?|十分な説明を受け、理解したうえで、自由な意思で同意すること",
+"看護基礎|看護師の守秘義務を定める法律は?|保健師助産師看護師法(第42条の2)",
+"看護基礎|ボディメカニクスの基本は?|支持基底面を広く、重心を低く、対象に近づき、てこの原理を使う",
+"薬・計算|薬の6R(与薬の6つの確認)は?|正しい患者、薬剤、目的、用量、用法(経路)、時間",
+"薬・計算|誤薬防止の基本は?|指差し呼称、ダブルチェック、薬を取り出すとき・準備するとき・投与前の3回確認",
+"薬・計算|SC・IM・IVはそれぞれ何の注射?|SC 皮下、IM 筋肉内、IV 静脈内",
+"薬・計算|食前・食後・食間の目安は?|食前は食事の約30分前、食後は約30分後、食間は食後約2時間(食事中ではない)",
+"薬・計算|頓服とは?|症状が出たときなど、必要時に使う薬",
+"薬・計算|1%溶液は何mg/mL?|10 mg/mL(1g/100mL)",
+"薬・計算|5%ブドウ糖液500mLに含まれるブドウ糖は?|25 g",
+"薬・計算|生理食塩水の濃度は?|0.9%",
+"薬・計算|一般用輸液セット(20滴/mL)で mL/h を滴/分にするには?|mL/h ÷ 3(例: 125 mL/h → 約42滴/分)",
+"薬・計算|微量用輸液セット(60滴/mL)の滴/分は?|mL/h と同じ数値になる",
+"薬・計算|低血糖の症状と対応は?|冷汗、動悸、手指のふるえ、意識低下。ブドウ糖などの糖分を摂取(意識がなければ医師へ連絡)",
+"薬・計算|ワルファリン服用中に避ける食品は?|納豆、クロレラ、青汁(ビタミンKが効果を弱める)",
+"疾患|高カリウム血症で注意する点は?|不整脈や心停止の危険(心電図でテント状T波など)",
+"疾患|糖尿病の三大合併症は?|網膜症、腎症、神経障害",
+"疾患|心不全の症状は?|息切れ、むくみ、体重増加、横になると苦しい(起座呼吸)",
+"疾患|心筋梗塞の典型的な症状は?|20分以上続く激しい胸痛、冷汗、吐き気、息苦しさ",
+"疾患|脳卒中を疑うFASTとは?|Face 顔のゆがみ、Arm 腕の麻痺、Speech 言葉の異常、Time 発症時刻の確認と早期受診",
+"疾患|誤嚥を予防する食事の姿勢は?|上体を起こした座位。食後もしばらく姿勢を保つ",
+"救急|成人の胸骨圧迫の深さとテンポは?|約5cm(6cmを超えない)、100〜120回/分",
+"救急|胸骨圧迫と人工呼吸の比は?|30:2",
+"救急|心停止の対応の最初の流れは?|反応確認→助けを呼ぶ(AED依頼)→呼吸確認(10秒以内)→胸骨圧迫",
+"救急|ショックの5P(5徴候)は?|蒼白、虚脱、冷汗、脈拍触知不能、呼吸不全",
+"救急|アナフィラキシーで第一に使う薬は?|アドレナリン(筋肉注射)"
+].map(function(s){var p=s.split('|');return {q:'【'+p[0]+'】'+p[1],a:p[2],box:0,due:0}});
+var cards=sget('cards',null)||[];
+if(sget('deckv',0)<DECKV){var have={};cards.forEach(function(c){have[c.q]=1});DECK.forEach(function(d){if(!have[d.q])cards.push(d)});sset('cards',cards);sset('deckv',DECKV)}
+var INT=[0,1,2,4,8,16],cur=null,DAY=86400000;
+function save(){sset('cards',cards)}
+function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function nextCard(){var now=Date.now();var due=cards.filter(function(c){return c.due<=now});
+ $('stat').textContent='今日の復習 '+due.length+' 枚 / 全 '+cards.length+' 枚';
+ $('ca').classList.add('hide');$('bgrade').classList.add('hide');$('bshow').classList.remove('hide');
+ if(!due.length){cur=null;$('cq').textContent='今日の復習は完了です';$('bshow').classList.add('hide');return}
+ cur=due[Math.floor(Math.random()*due.length)];$('cq').textContent=cur.q}
+function showAns(){if(!cur)return;$('ca').textContent=cur.a;$('ca').classList.remove('hide');$('bshow').classList.add('hide');$('bgrade').classList.remove('hide')}
+function grade(ok){cur.box=ok?Math.min(cur.box+1,5):0;cur.due=Date.now()+(ok?INT[cur.box]*DAY:0);save();nextCard();renderList()}
+function addCard(){var q=$('nq').value.trim(),a=$('na').value.trim();if(!q||!a)return;cards.push({q:q,a:a,box:0,due:0});$('nq').value='';$('na').value='';save();nextCard();renderList()}
+function delCard(i){cards.splice(i,1);save();nextCard();renderList()}
+function renderList(){$('list').innerHTML=cards.map(function(c,i){return '<div class="chk"><div style="flex:1"><b>'+esc(c.q)+'</b><br><span class="note">'+esc(c.a)+'</span></div><button class="s" onclick="delCard('+i+')">削除</button></div>'}).join('')}
+function exp(){$('io').value=JSON.stringify(cards)}
+function imp(){try{var a=JSON.parse($('io').value);if(Array.isArray(a)&&a.every(function(c){return c&&c.q&&c.a})){cards=a.map(function(c){return {q:String(c.q),a:String(c.a),box:c.box||0,due:c.due||0}});save();nextCard();renderList();$('io').value='読み込みました'}else throw 0}catch(e){$('io').value='形式が正しくありません'}}
+nextCard();renderList();
+
+var SK=[["バイタルサイン測定",["手指衛生をし、物品(体温計・血圧計・パルスオキシメーター)を準備","本人確認と説明、同意","体温・脈拍・呼吸・血圧・SpO2 を測定","値と全身状態を確認し、普段との違いを判断","記録し、異常があれば報告","片付けと手指衛生"]],
+["手洗い(衛生的手洗い)",["爪を短くし、時計や指輪を外す","流水で手を濡らし、石けんを泡立てる","手のひら・甲・指の間・指先・親指・手首をこする","流水で十分にすすぐ","ペーパータオルで水分を拭き取る"]],
+["体位変換",["説明と同意、痛みや点滴・ドレーンの位置を確認","ベッドの高さを調整し、ブレーキを確認","身体を小さくまとめ、てこの原理で安全に側臥位へ","クッションで安定させ、圧迫部位を確認","皮膚の状態を観察し、記録"]],
+["採血(流れの確認)",["指示と患者の本人確認(氏名・ID)","物品準備と手指衛生、手袋着用","駆血し、血管を選んで消毒","穿刺し、採血管へ順に採取","止血を確認し、廃棄(針は専用容器)","ラベル確認と記録"]]];
+var ck=sget('checks',{});
+function renderSkills(){$('skills').innerHTML=SK.map(function(s,i){return '<div class="card"><h2>'+s[0]+'</h2>'+s[1].map(function(t,j){var id=i+'-'+j;return '<label class="chk" style="margin:0;color:var(--tx);font-size:15px"><input type="checkbox" '+(ck[id]?'checked':'')+' onchange="tg(\''+id+'\',this.checked)"><span>'+t+'</span></label>'}).join('')+'</div>'}).join('')}
+function tg(id,v){ck[id]=v;sset('checks',ck)}
+function resetChecks(){ck={};sset('checks',ck);renderSkills()}
+renderSkills();
+</script>
+</body>
+</html>
