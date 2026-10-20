@@ -1,0 +1,16 @@
+{
+  "name": "ナースノート",
+  "short_name": "ナースノート",
+  "description": "看護学生・看護師向けの学習・確認ツール",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ja",
+  "background_color": "#f6f8f7",
+  "theme_color": "#0f8a6d",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
