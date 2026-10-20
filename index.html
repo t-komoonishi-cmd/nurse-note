@@ -27,6 +27,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 .chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0}.chk input{width:22px;height:22px;margin-top:3px;flex:none}
 .hide{display:none}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
 <main>
@@ -60,7 +61,31 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 <section id="t-dis" class="hide">
 <div class="row"><input id="dq" placeholder="病名・症状で検索(例: 心不全、息切れ、胸痛)" oninput="renderDis()"><button class="s" style="flex:none;margin:0" onclick="voice('dq')">🎤</button></div>
 <p class="note">学習用のまとめです。診断や治療の判断には使わず、体調が悪いときは医療機関に相談してください。</p>
+<details class="card"><summary><b>＋ 病名を追加(自分で増やす)</b></summary>
+<label>病名</label><div class="row"><input id="mn"><button class="s" style="flex:none;margin:0" onclick="voice('mn')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('mn')">📷</button></div>
+<label>症状</label><div class="row"><input id="ms"><button class="s" style="flex:none;margin:0" onclick="voice('ms')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('ms')">📷</button></div>
+<label>対処・看護のポイント</label><div class="row"><input id="mc"><button class="s" style="flex:none;margin:0" onclick="voice('mc')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('mc')">📷</button></div>
+<button onclick="addDis()">追加</button>
+<p class="note">📷は写真から文字を読み取ります(初回は通信と時間がかかります)。読み取り後、間違いを直してから追加してください。追加した内容は、この端末の中にだけ保存されます。患者さんの個人情報は入れないでください。</p></details>
 <div id="dres"></div>
+</section>
+
+<section id="t-quiz" class="hide">
+<div class="card"><h2>国試形式の練習問題</h2>
+<div class="note" id="qst"></div>
+<select id="qmode" onchange="qmodeChg()"><option value="a">全問から出題</option><option value="w">間違えた問題だけ</option><option value="e">模擬試験(20問・1問1分)</option></select>
+<p id="qq" style="font-weight:600;margin-top:12px"></p><div id="qch"></div>
+<div id="qex" class="res hide" style="font-weight:400"></div>
+<button id="qnx" class="hide" onclick="qnext()">次の問題</button>
+<button class="s" onclick="qreset()">成績をリセット</button>
+<p class="note">国家試験を参考にした、このアプリ用のオリジナル問題です。実際の過去問は、厚生労働省のホームページで公開されています。</p></div>
+<div class="card"><h2>分野別の正答率</h2><div id="qcat"></div></div>
+<div class="card"><h2>過去問の間違いノート</h2>
+<label>出典(例: 第115回 午前 25)</label><input id="wn1">
+<label>分野</label><input id="wn2" placeholder="例: 循環器">
+<label>間違えた理由・正しい知識</label><div class="row"><textarea id="wn3" rows="3"></textarea><button class="s" style="flex:none;margin:0" onclick="voice('wn3')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('wn3')">📷</button></div>
+<button onclick="addWn()">追加</button><div id="wlist"></div>
+<p class="note">過去問の問題文は写さず、出典と、自分の言葉でのメモだけを残してください。患者さんの情報は入れないでください。</p></div>
 </section>
 
 <section id="t-card" class="hide">
@@ -69,7 +94,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 <div class="row"><button id="bshow" onclick="showAns()">答えを見る</button></div>
 <div class="row hide" id="bgrade"><button class="ng" onclick="grade(false)">まだ</button><button onclick="grade(true)">覚えた</button></div></div>
 <div class="card"><h2>カードを追加</h2>
-<label>問題</label><div class="row"><input id="nq"><button class="s" style="flex:none;margin:0" onclick="voice('nq')">🎤</button></div><label>答え</label><div class="row"><input id="na"><button class="s" style="flex:none;margin:0" onclick="voice('na')">🎤</button></div>
+<label>問題</label><div class="row"><input id="nq"><button class="s" style="flex:none;margin:0" onclick="voice('nq')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('nq')">📷</button></div><label>答え</label><div class="row"><input id="na"><button class="s" style="flex:none;margin:0" onclick="voice('na')">🎤</button><button class="s" style="flex:none;margin:0" onclick="ocr('na')">📷</button></div>
 <button onclick="addCard()">追加</button></div>
 <div class="card"><h2>手書きメモ</h2>
 <canvas id="cv" style="width:100%;border:1px solid var(--bd);border-radius:8px;touch-action:none;background:#fff"></canvas>
@@ -90,9 +115,10 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 </main>
 
 <nav>
-<button class="on" data-t="calc">計算</button><button data-t="ref">早見表</button><button data-t="dis">病名</button><button data-t="card">暗記</button><button data-t="skill">手技</button>
+<button class="on" data-t="calc">計算</button><button data-t="ref">早見表</button><button data-t="dis">病名</button><button data-t="quiz">問題</button><button data-t="card">暗記</button><button data-t="skill">手技</button>
 </nav>
 
+<input type="file" id="cam" accept="image/*" class="hide">
 <script>
 var mem={};
 function sget(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return mem[k]!==undefined?mem[k]:d}}
@@ -103,7 +129,7 @@ function f(x){return Math.round(x*100)/100}
 
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){
  document.querySelectorAll('nav button').forEach(function(x){x.classList.toggle('on',x===b)});
- ['calc','ref','dis','card','skill'].forEach(function(t){$('t-'+t).classList.toggle('hide',t!==b.dataset.t)});window.scrollTo(0,0)}});
+ ['calc','ref','dis','quiz','card','skill'].forEach(function(t){$('t-'+t).classList.toggle('hide',t!==b.dataset.t)});window.scrollTo(0,0)}});
 
 function calc1(){var v=n('c1v'),h=n('c1h'),k=parseFloat($('c1f').value);
  if(!(v>0&&h>0)){$('r1').textContent='数値を入力してください';return}
@@ -154,9 +180,9 @@ var DIS=[
 "バセドウ病|甲状腺 動悸|動悸、発汗、体重減少、手のふるえ、眼球突出、甲状腺の腫れ|抗甲状腺薬。安静、水分、感情の波に配慮。薬は自己中断しない",
 "熱中症|暑さ めまい けいれん|めまい、立ちくらみ、頭痛、吐き気、けいれん、重症は意識障害・高体温|涼しい場所へ移し、衣服を緩め、首・わき・脚の付け根を冷やす。意識があれば水分と塩分。意識障害は救急要請"
 ].map(function(s){var p=s.split('|');return {n:p[0],k:p[1],s:p[2],c:p[3]}});
-function renderDis(){var q=$('dq').value.trim().toLowerCase();
- var r=DIS.filter(function(d){return !q||(d.n+d.k+d.s+d.c).toLowerCase().indexOf(q)>=0});
- $('dres').innerHTML=r.map(function(d){return '<details class="card"'+(q?' open':'')+'><summary><b>'+d.n+'</b></summary><label>症状</label>'+d.s+'<label>対処・看護のポイント</label>'+d.c+'</details>'}).join('')||'<p class="note">該当なし</p>'}
+function renderDis(){var qs=$('dq').value.toLowerCase().split(/[ \u3000]+/).filter(Boolean),q=qs.join(' ');
+ var r=DIS.filter(function(d){var t=(d.n+d.k+d.s+d.c).toLowerCase();return qs.every(function(w){return t.indexOf(w)>=0})});
+ $('dres').innerHTML=r.map(function(d){return '<details class="card"'+(q?' open':'')+'><summary><b>'+d.n+'</b></summary><label>症状</label>'+d.s+'<label>対処・看護のポイント</label>'+d.c+(d.my?'<br><button class="s" onclick="delDis('+d.my+')">削除</button>':'')+'</details>'}).join('')||'<p class="note">該当なし</p>'}
 DIS=DIS.concat([
 "肺結核|咳 微熱 寝汗|2週間以上続く咳、痰、微熱、寝汗、体重減少|空気感染予防策(N95マスク、陰圧室)、抗結核薬を長期間きちんと内服(自己中断しない)",
 "気胸|胸痛 息苦しさ|突然の胸痛、息苦しさ、乾いた咳(やせ型の若い男性に多い)|安静、胸腔ドレナージ、ドレーンの屈曲・抜けに注意、呼吸状態の観察",
@@ -195,7 +221,145 @@ function csave(){var m=sget('notes',[]);m.unshift(cv.toDataURL('image/jpeg',0.6)
 function delNote(i){var m=sget('notes',[]);m.splice(i,1);sset('notes',m);renderNotes()}
 function renderNotes(){var m=sget('notes',[]);$('notes').innerHTML=m.map(function(u,i){return '<div style="margin-top:8px"><img src="'+u+'" style="width:100%;border-radius:8px"><button class="s" onclick="delNote('+i+')">削除</button></div>'}).join('')}
 renderNotes();
-renderDis();
+var DISB=DIS.slice();
+function rebuildDis(){DIS=DISB.concat(sget('mydis',[]).map(function(d,i){return {n:esc(d.n),k:'',s:esc(d.s),c:esc(d.c),my:i+1}}));renderDis()}
+function addDis(){var n=$('mn').value.trim(),s=$('ms').value.trim(),c=$('mc').value.trim();if(!n||!(s||c))return;var m=sget('mydis',[]);m.push({n:n,s:s,c:c});sset('mydis',m);$('mn').value='';$('ms').value='';$('mc').value='';rebuildDis()}
+function delDis(i){var m=sget('mydis',[]);m.splice(i-1,1);sset('mydis',m);rebuildDis()}
+rebuildDis();
+
+var ocrT=null;
+function ocr(id){ocrT=id;$('cam').value='';$('cam').click()}
+function shrink(f){return new Promise(function(res){var u=URL.createObjectURL(f),im=new Image();im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c)};im.onerror=function(){res(f)};im.src=u})}
+$('cam').onchange=async function(){var f=this.files[0];if(!f)return;var el=$(ocrT),ph=el.placeholder;el.placeholder='読み取り中…(初回は時間がかかります)';
+ try{if(!window.Tesseract)throw 0;var img=await shrink(f);var r=await Tesseract.recognize(img,'jpn');
+  var t=r.data.text.replace(/([\u3000-\u9fff\uff00-\uffef])[ \t]+(?=[\u3000-\u9fff\uff00-\uffef])/g,'$1').replace(/\s*\n\s*/g,' ').trim();
+  el.value=t;el.dispatchEvent(new Event('input'))}
+ catch(e){alert('文字の読み取りに失敗しました。通信状態を確認するか、手入力・音声入力をお使いください。')}
+ el.placeholder=ph};
+
+var QZ=[
+"解剖生理|動脈血が流れている静脈はどれか。|上大静脈#肺静脈#門脈#腎静脈|2|肺静脈は、肺で酸素を受け取った血液を左心房へ運ぶため、静脈でも動脈血が流れる。",
+"解剖生理|血糖値を低下させるホルモンはどれか。|グルカゴン#インスリン#アドレナリン#コルチゾール|2|インスリンは膵臓のランゲルハンス島β細胞から分泌される。ほかの3つは血糖を上げる。",
+"解剖生理|胆汁を産生する臓器はどれか。|胆嚢#膵臓#肝臓#十二指腸|3|胆汁は肝臓でつくられ、胆嚢で貯蔵・濃縮される。",
+"解剖生理|ガス交換が行われる部位はどれか。|気管#気管支#肺胞#咽頭|3|酸素と二酸化炭素の交換は、肺胞を取り巻く毛細血管との間で行われる。",
+"解剖生理|呼吸中枢がある部位はどれか。|大脳皮質#小脳#延髄#視床下部|3|延髄には呼吸中枢と循環中枢がある。",
+"解剖生理|尿をつくる腎臓の機能単位はどれか。|ネフロン#ニューロン#肺胞#ランゲルハンス島|1|ネフロンは糸球体・ボウマン嚢・尿細管からなる。",
+"観察|成人の頻脈の目安はどれか。|60回/分以上#80回/分以上#100回/分以上#140回/分以上|3|成人の脈拍の正常は60〜100回/分。100回/分以上を頻脈、60回/分未満を徐脈という。",
+"観察|意識レベルの評価に用いられるのはどれか。|JCS#NYHA#BMI#ASA|1|JCSは意識レベルの分類。NYHAは心不全の重症度、BMIは体格指数。",
+"観察|仰臥位での褥瘡の好発部位はどれか。|前腕外側#腹部#仙骨部#頸部前面|3|骨が突出して圧がかかりやすい仙骨部、踵部、後頭部、肩甲骨部に多い。",
+"観察|脈圧とはどれか。|収縮期血圧と拡張期血圧の和#収縮期血圧と拡張期血圧の差#拡張期血圧の2倍#平均血圧と同じもの|2|脈圧は収縮期血圧から拡張期血圧を引いた値。",
+"観察|パルスオキシメータで正確に測るために適切なのはどれか。|プローブを強く圧迫して固定する#測定中は手を動かしてもらう#末梢が冷たいときは温めてから測る#強い光を当てて測る|3|末梢循環不良、体動、マニキュア、強い外光は測定値に影響する。",
+"感染|手が目に見えて汚れているときの手指衛生で適切なのはどれか。|速乾性手指消毒薬のみで行う#流水と石けんで洗う#ウェットティッシュで拭く#手袋の上から行う|2|目に見える汚れがあるときは、流水と石けんで洗う。",
+"感染|空気感染する疾患はどれか。|インフルエンザ#ノロウイルス感染症#結核#MRSA感染症|3|空気感染は結核、麻疹、水痘など。インフルエンザは飛沫、ノロウイルスとMRSAは接触が中心。",
+"感染|ノロウイルスによる嘔吐物の処理に用いる消毒薬はどれか。|消毒用エタノール#ポビドンヨード#次亜塩素酸ナトリウム#クロルヘキシジン|3|ノロウイルスにはアルコールが効きにくく、次亜塩素酸ナトリウムを用いる。",
+"感染|針刺し事故の直後にまず行うのはどれか。|勤務終了後にまとめて報告する#傷口を流水と石けんで洗い流す#傷口を消毒用エタノールに浸す#針にキャップをする|2|直ちに流水で十分に洗い、速やかに上司へ報告して受診する。",
+"薬|与薬の6Rに含まれないのはどれか。|正しい患者#正しい薬剤#正しい用量#正しい価格|4|6Rは患者・薬剤・目的・用量・用法(経路)・時間。",
+"薬|内服薬の「食間」とはどれか。|食事中#食後約2時間#食事の直前#食事の30分前|2|食間は食事と食事の間(食後約2時間)で、食事中ではない。",
+"薬|輸液500mLを4時間で投与する速度は何mL/hか。|100#125#150#200|2|500÷4＝125 mL/h。",
+"薬|20滴/mLの輸液セットで125mL/hは約何滴/分か。|約21#約63#約42#約125|3|125×20÷60≒41.7 で、約42滴/分。",
+"薬|1%の薬液10mLに含まれる薬剤量はどれか。|10mg#100mg#1000mg#10000mg|2|1%は10mg/mL。10mLでは100mg。",
+"疾患|糖尿病の三大合併症に含まれないのはどれか。|網膜症#腎症#神経障害#気管支喘息|4|三大合併症は網膜症、腎症、神経障害。",
+"疾患|心不全でみられる症状はどれか。|排尿時痛#黄疸#下肢のむくみ#血尿|3|心臓のポンプ機能低下により、むくみ、息切れ、体重増加などがみられる。",
+"疾患|脳卒中を疑うサインFAST(Face・Arm・Speech・Time)に含まれないのはどれか。|顔のゆがみ#腕の麻痺#言葉の障害#腹痛|4|FASTは顔・腕・言葉の異常に気づき、発症時刻を確認して早く受診する合言葉。",
+"疾患|低血糖時にみられる症状はどれか。|口渇と多尿#顔面紅潮と高熱#冷汗と動悸#徐脈と皮膚乾燥|3|冷汗、動悸、手指のふるえ、意識低下がみられる。口渇・多尿は高血糖。",
+"疾患|COPDの最大の危険因子はどれか。|飲酒#肥満#喫煙#運動不足|3|喫煙が最大の危険因子で、禁煙が最も重要な対策。",
+"救急|成人の胸骨圧迫のテンポはどれか。|40〜60回/分#60〜80回/分#100〜120回/分#140〜160回/分|3|深さ約5cm(6cmを超えない)、100〜120回/分。",
+"救急|成人の心肺蘇生で胸骨圧迫と人工呼吸の比はどれか。|15対1#15対2#60対2#30対2|4|30回の胸骨圧迫と2回の人工呼吸を繰り返す。",
+"救急|アナフィラキシーに第一選択で用いる薬はどれか。|抗ヒスタミン薬#ステロイド#気管支拡張薬#アドレナリン|4|アドレナリンの筋肉内注射が第一選択。",
+"倫理|看護師の守秘義務を定めている法律はどれか。|医療法#介護保険法#保健師助産師看護師法#薬機法|3|保健師助産師看護師法(第42条の2)に定められている。",
+"基礎|看護過程の最初の段階はどれか。|計画立案#実施#評価#情報収集とアセスメント|4|看護過程は、アセスメント→看護診断→計画立案→実施→評価の順に進む。",
+"基礎|ボディメカニクスで適切なのはどれか。|重心を高くする#支持基底面を広くとる#対象から離れて持つ#腕の力だけで動かす|2|支持基底面を広く、重心を低く、対象に近づき、てこの原理を使う。"
+,
+"解剖生理|心臓の刺激伝導系で、最初に興奮が起こる部位はどれか。|房室結節#洞結節#ヒス束#プルキンエ線維|2|洞結節が歩調とり(ペースメーカー)で、房室結節、ヒス束、プルキンエ線維の順に伝わる。",
+"解剖生理|大動脈弁があるのはどこか。|右心房と右心室の間#左心室と大動脈の間#左心房と左心室の間#右心室と肺動脈の間|2|大動脈弁は、左心室から大動脈への出口にある。",
+"解剖生理|胃液の主成分で、強い酸性を示すのはどれか。|胆汁酸#重炭酸#塩酸#アミラーゼ|3|胃液の主成分は塩酸(胃酸)で、たんぱく質分解酵素ペプシンの働きを助ける。",
+"解剖生理|血液凝固に必要なビタミンはどれか。|ビタミンA#ビタミンB1#ビタミンC#ビタミンK|4|ビタミンKは凝固因子の合成に必要で、ワルファリンはその働きを抑える薬。",
+"解剖生理|細胞外液の主な陽イオンはどれか。|カリウム#ナトリウム#カルシウム#マグネシウム|2|細胞外液ではナトリウム、細胞内液ではカリウムが主な陽イオン。",
+"解剖生理|副交感神経が優位なときの変化はどれか。|瞳孔の散大#心拍数の増加#消化管運動の促進#気管支の拡張|3|副交感神経は消化管運動を促進する。心拍数は低下し、瞳孔と気管支は縮小する。",
+"解剖生理|甲状腺ホルモンの分泌が過剰なときにみられるのはどれか。|体重増加と徐脈#動悸と発汗#寒がりと便秘#眠気とむくみ|2|甲状腺機能亢進では代謝が高まり、動悸、発汗、体重減少、手のふるえがみられる。",
+"検査|成人の血清ナトリウムの基準値の目安はどれか。|100〜110 mEq/L#115〜125 mEq/L#135〜145 mEq/L#155〜165 mEq/L|3|血清Naの基準は約135〜145 mEq/L。",
+"検査|高カリウム血症で注意すべき合併症はどれか。|骨折#重篤な不整脈#脱毛#視力低下|2|重篤な不整脈や心停止の危険があり、心電図で変化がみられる。",
+"検査|HbA1cが反映する血糖コントロールの期間はどれか。|直近の数時間#直近1週間#直近1〜2か月#直近1年|3|HbA1cは、過去およそ1〜2か月の血糖コントロールを反映する。",
+"観察|成人の1日尿量が400mL未満の状態を何というか。|多尿#乏尿#無尿#頻尿|2|1日400mL未満は乏尿、100mL未満は無尿という。",
+"観察|チェーン・ストークス呼吸の説明はどれか。|浅く速い呼吸が続く#無呼吸と大きな呼吸が周期的に繰り返される#深く規則的な大きな呼吸#吸気時に笛のような音がする|2|小さな呼吸から大きな呼吸へ、そして無呼吸へと周期的に繰り返す呼吸。",
+"感染|MRSA感染症の主な予防策はどれか。|空気予防策#飛沫予防策#接触予防策#防護環境のみ|3|MRSAは主に接触感染のため、接触予防策(手指衛生、手袋、ガウン)を行う。",
+"感染|滅菌物の取り扱いで適切なのはどれか。|有効期限が切れても包装が無傷なら使う#包装が濡れていたら使用しない#床に落としても拾えば使う#開封後は翌日も使う|2|包装の破損、濡れ、期限切れの滅菌物は使用しない。",
+"安全|転倒予防の看護で適切なのはどれか。|夜間は廊下を暗くする#ナースコールを手の届く位置に置く#ベッド柵を4本とも上げて動けないようにする#履物はスリッパを勧める|2|ナースコールを近くに置くなど環境を整える。4本柵は抑制にあたり、乗り越えによる転落の危険もある。",
+"安全|患者確認で最も適切なのはどれか。|病室番号と顔の記憶で確認する#患者に名乗ってもらい、リストバンドと照合する#家族に名前を聞くだけ#名前を呼んで返事があれば確認とする|2|患者自身に名乗ってもらい、リストバンドなどと照合する。",
+"薬|薬の吸収が最も速い投与経路はどれか。|経口#皮下注射#静脈内注射#経皮|3|静脈内注射は薬が直接血液に入るため、効果の発現が最も速い。",
+"薬|体重50kgの患者に2mg/kgを投与する指示の1回量は何mgか。|25mg#50mg#100mg#200mg|3|2mg/kg × 50kg = 100 mg。",
+"薬|濃度5mg/mLの薬液で100mgを投与するとき、何mLか。|2mL#5mL#10mL#20mL|4|100mg ÷ 5mg/mL = 20 mL。",
+"疾患|高血圧が続くと起こりやすい合併症はどれか。|虫垂炎#花粉症#脳卒中#水虫|3|高血圧は脳卒中、心臓病、腎臓病などの原因になる。",
+"疾患|心筋梗塞が疑われる患者への初期対応で適切なのはどれか。|歩かせて様子をみる#安静にして、直ちに救急対応を要請する#食事をとらせる#入浴させる|2|安静を保ち、直ちに救急要請などの対応をとる。",
+"疾患|気管支喘息の発作時に楽な体位はどれか。|仰臥位#腹臥位#起坐位#頭低位|3|起坐位(座位)は横隔膜が下がり、呼吸が楽になる。",
+"疾患|慢性腎臓病(CKD)の食事療法で、進行期に制限されることがあるのはどれか。|鉄分#食物繊維#カリウムやたんぱく質#ビタミンB|3|病期に応じて、塩分、たんぱく質、カリウム、リンなどを制限する。",
+"疾患|認知症の人への対応で適切なのはどれか。|間違いを強く指摘する#本人の話を否定せずに聞く#急に大声で話しかける#説明せずに介助する|2|本人の話を否定せず、安心できる関わりを心がける。",
+"疾患|うつ病の患者への対応で適切なのはどれか。|「頑張って」と励まし続ける#十分な休養がとれるよう支援する#気晴らしの旅行を強く勧める#死にたい気持ちの話題は避ける|2|励ましすぎず休養を支援する。死にたい気持ちがあれば、避けずに確認して支援につなぐ。",
+"救急|成人でAEDの電極パッドを貼る位置はどれか。|右前胸部と左側胸部#両側の肩#腹部と背中#両側の大腿|1|右前胸部(鎖骨の下)と左側胸部(わきの下)に貼る。",
+"救急|熱中症の応急処置で適切なのはどれか。|厚着をさせて汗をかかせる#涼しい場所で衣服を緩め、体を冷やす#熱いお茶を飲ませる#歩かせて様子をみる|2|涼しい場所へ移し、衣服を緩め、首・わき・脚の付け根などを冷やす。意識障害があれば救急要請。",
+"救急|反応のある成人の窒息への対応で適切なのはどれか。|背部叩打法や腹部突き上げ法を行う#水を大量に飲ませる#仰臥位にして様子をみる#背中をさする|1|異物を出すため、背部叩打法や腹部突き上げ法を行う。",
+"倫理|患者の個人情報の扱いで適切なのはどれか。|家族なら本人の同意なく何でも伝える#本人の同意なく第三者に伝えない#SNSに匿名なら書いてよい#業務外の知人に話す|2|個人情報は本人の同意なく第三者に伝えない。",
+"基礎|食事介助の姿勢で適切なのはどれか。|仰臥位#やや前かがみの座位#頭を後ろに倒す#腹臥位|2|やや前かがみで顎を軽く引いた座位は、誤嚥を防ぎやすい。",
+"基礎|体位変換の一般的な間隔の目安はどれか。|30分ごと#2時間ごと#8時間ごと#24時間ごと|2|褥瘡予防では、2時間ごとの体位変換が一般的な目安。",
+"母性小児|新生児の呼吸数の目安はどれか。|10〜15回/分#20〜30回/分#40〜60回/分#80〜100回/分|3|新生児の呼吸数は約40〜60回/分で、成人より速い。",
+"母性小児|乳児の脱水のサインはどれか。|大泉門の陥没#大泉門の膨隆#よく笑う#体重の増加|1|大泉門のくぼみ、尿量の減少、口唇の乾燥などがみられる。",
+"精神|統合失調症の陽性症状はどれか。|意欲の低下#感情の平板化#幻覚・妄想#自閉|3|幻覚・妄想は陽性症状。意欲低下や感情の平板化は陰性症状。"
+,
+"母性小児|正常な妊娠期間はおよそ何週か。|28週#32週#40週#48週|3|正常な妊娠期間は約40週(最終月経から数える)。",
+"母性小児|新生児の体重は生後数日間でどう変化するか。|増加する#一時的に減少する#変化しない#2倍になる|2|生理的体重減少で、生後数日に一時的に減り、その後回復する。",
+"母性小児|母乳栄養の特徴はどれか。|免疫物質を含む#ビタミンKが非常に多い#鉄が非常に多い#たんぱく質が牛乳より多い|1|母乳には感染防御に役立つ免疫物質が含まれる。ビタミンKと鉄は多くない。",
+"母性小児|生後2か月から始まる乳児の予防接種に含まれるのはどれか。|麻疹風疹混合(MR)#日本脳炎#Hibや小児用肺炎球菌、B型肝炎など#水痘のみ|3|生後2か月から、Hib、小児用肺炎球菌、B型肝炎などが始まる。スケジュールは変わることがある。",
+"成人|心室細動に対する最初の処置はどれか。|経過観察#降圧薬の投与#酸素のみ投与#胸骨圧迫と電気的除細動(AED)|4|心室細動では、直ちに胸骨圧迫を行い、AEDで除細動を行う。",
+"成人|慢性心不全の患者の日常生活指導で適切なのはどれか。|症状が出ても様子をみる#塩分を多めにとる#毎日体重を測定する#水分を制限なく摂る|3|急な体重増加は、むくみや心不全の悪化のサインになる。",
+"成人|糖尿病のシックデイで適切なのはどれか。|食べられないので絶食する#水分と糖質を摂り、早めに医療機関へ相談する#運動を増やす#自己判断でインスリンを中止する|2|食べられなくても、自己判断でインスリンを中止せず、水分補給と早めの相談を行う。",
+"成人|ネフローゼ症候群の特徴はどれか。|血尿のみ#高たんぱく血症#高度のたんぱく尿と低アルブミン血症#低コレステロール血症|3|高度のたんぱく尿、低アルブミン血症、浮腫、脂質異常がみられる。",
+"成人|肝性脳症の悪化要因はどれか。|運動#便秘#水分摂取#入浴|2|便秘や消化管出血、高たんぱく食などでアンモニアが増え、悪化する。",
+"成人|術後の早期離床の目的はどれか。|ベッド上安静を続けるため#食欲を下げるため#肺合併症や深部静脈血栓症を予防するため#創部の痛みを増やすため|3|早期離床は、肺炎や無気肺、血栓、腸管麻痺などの予防に役立つ。",
+"成人|ドレーン管理で適切なのはどれか。|排液の量と性状を観察する#引っ張って固定する#固定せず放置する#排液は報告しない|1|排液の量・色・性状を観察し、抜けや屈曲がないかを確認する。",
+"老年|高齢者で薬の副作用が出やすい理由はどれか。|代謝が速まるため#腎機能・肝機能の低下で薬が体内に残りやすいため#水分が増えるため#薬を飲む量が増えるため|2|加齢で腎機能・肝機能が低下し、薬が体内に長くとどまりやすい。",
+"老年|フレイルの説明はどれか。|加齢により心身の活力が低下し、要介護になりやすい状態#急性の重症感染症#骨折のみを指す#認知症と同じ意味|1|フレイルは、適切な介入で健康な状態に戻りうる中間の状態。",
+"在宅|訪問看護の提供で適切なのはどれか。|医師の指示は不要#主治医の指示書に基づいて提供する#家族の同意だけで医療処置を行う#緊急時の連絡先は決めない|2|訪問看護は主治医の訪問看護指示書に基づいて提供する。",
+"法規|看護師の業務として法律に定められているのはどれか。|診断と処方#手術の執刀#薬の調剤#療養上の世話と診療の補助|4|保健師助産師看護師法で、看護師は療養上の世話または診療の補助を業とする。",
+"法規|医療法で、病床数が20床以上の施設を何というか。|診療所#病院#助産所#薬局|2|20床以上は病院、19床以下は診療所。",
+"精神|うつ病の患者で特に確認すべきことはどれか。|視力#体重のみ#自殺念慮の有無#血糖値のみ|3|自殺念慮の有無を、避けずに確認し、支援につなぐ。",
+"精神|不安の強い患者への対応で適切なのはどれか。|早口で説得する#落ち着いた態度で話を聞く#大勢で取り囲んで説明する#無視する|2|落ち着いた態度で、本人の話をじっくり聞く。",
+"倫理|終末期の患者の意思決定で重要なのはどれか。|家族の意向のみで決める#医療者のみで決める#意思確認を行わない#本人の意思を尊重し、話し合いを重ねる|4|本人の意思を尊重し、家族や医療者で話し合いを重ねる。",
+"公衆衛生|特定健康診査(特定健診)の対象はどれか。|20〜39歳#40〜74歳#75歳以上のみ#全年齢|2|特定健診は40〜74歳の人が対象。",
+"基礎|臥床患者の関節拘縮予防に適切なのはどれか。|関節を動かさない#強く伸ばす#可動域内で他動運動を行う#同じ姿勢を続ける|3|痛みの出ない範囲で、関節可動域内の運動を行う。",
+"基礎|摂食嚥下障害のある患者の食事で適切なのはどれか。|水分をそのまま与える#とろみをつけて与える#寝たまま与える#急いで食べさせる|2|とろみをつけると、誤嚥を減らしやすい。"
+].map(function(s,i){var p=s.split('|');return {id:i,cat:p[0],q:p[1],ch:p[2].split('#'),a:parseInt(p[3])-1,ex:p[4]}});
+var qcat=sget('qcat',{}),qwrong=sget('qwrong',[]),qscore=sget('qscore',{ok:0,n:0}),qcur=null,qans=false;
+function qstat(){if(ex){tick();return}renderCat();$('qst').textContent='正解 '+qscore.ok+' / 解答 '+qscore.n+'(間違えた問題 '+qwrong.length+' 件)'}
+function qnext(){if(ex&&ex.i>=ex.l.length){finishExam();return}var pool=ex?[ex.l[ex.i]]:($('qmode').value==='w'?QZ.filter(function(x){return qwrong.indexOf(x.id)>=0}):QZ);
+ qans=false;$('qex').classList.add('hide');$('qnx').classList.add('hide');
+ if(!pool.length){qcur=null;$('qq').textContent='該当する問題がありません';$('qch').innerHTML='';qstat();return}
+ var c;do{c=pool[Math.floor(Math.random()*pool.length)]}while(pool.length>1&&qcur&&c.id===qcur.id);var ord=c.ch.map(function(_,i){return i});for(var k=ord.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1)),t=ord[k];ord[k]=ord[j];ord[j]=t}c={id:c.id,cat:c.cat,q:c.q,ch:ord.map(function(i){return c.ch[i]}),a:ord.indexOf(c.a),ex:c.ex};qcur=c;
+ $('qq').textContent='【'+c.cat+'】'+c.q;
+ $('qch').innerHTML=c.ch.map(function(t,i){return '<button class="s" style="display:block;width:100%;text-align:left" onclick="qpick('+i+')">'+(i+1)+'. '+t+'</button>'}).join('');qstat()}
+function qpick(i){if(qans||!qcur)return;qans=true;var ok=i===qcur.a;qscore.n++;
+ if(ok){qscore.ok++;qwrong=qwrong.filter(function(x){return x!==qcur.id})}else if(qwrong.indexOf(qcur.id)<0)qwrong.push(qcur.id);
+ sset('qwrong',qwrong);sset('qscore',qscore);var cc=qcat[qcur.cat]||[0,0];cc[1]++;if(ok)cc[0]++;qcat[qcur.cat]=cc;sset('qcat',qcat);
+ if(ex){ex.i++;if(ok)ex.ok++;else ex.w.push(qcur);qnext();return}
+ $('qex').innerHTML=(ok?'<b style="color:var(--ac)">正解です。</b>':'<b style="color:var(--ng)">不正解。正解は '+(qcur.a+1)+' です。</b>')+'<br>'+qcur.ex;
+ $('qex').classList.remove('hide');$('qnx').classList.remove('hide');qstat()}
+function qreset(){qcat={};sset('qcat',qcat);qscore={ok:0,n:0};qwrong=[];sset('qwrong',qwrong);sset('qscore',qscore);qnext()}
+var ex=null,tmr=null;
+function qmodeChg(){clearInterval(tmr);ex=null;if($('qmode').value==='e')startExam();else qnext()}
+function startExam(){var a=QZ.slice().sort(function(){return Math.random()-.5}).slice(0,20);ex={l:a,i:0,ok:0,w:[],end:Date.now()+a.length*60000};tmr=setInterval(tick,1000);qnext()}
+function tick(){if(!ex)return;var r=Math.max(0,Math.round((ex.end-Date.now())/1000));$('qst').textContent='模擬試験 '+Math.min(ex.i+1,ex.l.length)+' / '+ex.l.length+'問 ・ 残り '+Math.floor(r/60)+':'+('0'+r%60).slice(-2);if(r<=0)finishExam()}
+function finishExam(){clearInterval(tmr);var e=ex;ex=null;$('qex').classList.add('hide');$('qnx').classList.add('hide');var n=e.l.length;
+ $('qq').textContent='結果: '+e.ok+' / '+n+' 問正解(正答率 '+Math.round(e.ok*100/n)+'%)'+(e.i<n?' ・未解答 '+(n-e.i)+'問':'');
+ $('qch').innerHTML=e.w.length?'<p class="note">間違えた問題と解説</p>'+e.w.map(function(q){return '<div class="res" style="font-weight:400"><b>'+q.q+'</b><br>正解: '+q.ch[q.a]+'<br>'+q.ex+'</div>'}).join(''):'<p>解答した問題はすべて正解です。</p>';
+ $('qst').textContent='模擬試験 終了(もう一度は、上の選択を切り替えてください)';renderCat()}
+function renderCat(){var a=Object.keys(qcat).map(function(k){return [k,qcat[k][0],qcat[k][1]]}).sort(function(x,y){return x[1]/x[2]-y[1]/y[2]});
+ $('qcat').innerHTML=a.length?'<table>'+a.map(function(r){return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+' / '+r[2]+'</td><td>'+Math.round(r[1]*100/r[2])+'%</td></tr>'}).join('')+'</table><p class="note">正答率が低い順です。上の分野が弱点です。</p>':'<p class="note">問題を解くと、分野別の正答率がここに出ます。</p>'}
+var wn=sget('wnotes',[]);
+function renderWn(){$('wlist').innerHTML=wn.map(function(w,i){return '<div class="card" style="margin:8px 0 0"><b>'+esc(w.s)+'</b> <span class="note">'+esc(w.c)+'</span><br>'+esc(w.m)+'<div class="row"><button class="s" onclick="wnCard('+i+')">カードにする</button><button class="s" onclick="wnDel('+i+')">削除</button></div></div>'}).join('')}
+function addWn(){var s=$('wn1').value.trim(),c=$('wn2').value.trim(),m=$('wn3').value.trim();if(!s||!m)return;wn.unshift({s:s,c:c,m:m});sset('wnotes',wn);$('wn1').value='';$('wn2').value='';$('wn3').value='';renderWn()}
+function wnDel(i){wn.splice(i,1);sset('wnotes',wn);renderWn()}
+function wnCard(i){var w=wn[i];cards.push({q:'【過去問】'+w.s+(w.c?'('+w.c+')':''),a:w.m,box:0,due:0});save();nextCard();renderList();alert('暗記カードに追加しました')}
+renderWn();
+qnext();
 var DECKV=2;
 var DECK=[
 "解剖生理|心臓の4つの部屋は?|右心房・右心室・左心房・左心室",
